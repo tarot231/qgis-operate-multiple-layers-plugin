@@ -23,7 +23,7 @@
 
 from qgis.PyQt.QtCore import QObject, QEvent, Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import QWidget
-from qgis.core import (QgsVectorLayer, Qgis,
+from qgis.core import (QgsVectorLayer, Qgis, QgsLayerTreeNode,
                        QgsRectangle, QgsGeometry, QgsProject, QgsFeatureRequest)
 from qgis.gui import QgsMapMouseEvent
 from .watcher import WatcherBase
@@ -90,13 +90,24 @@ class SelectFeaturesWatcher(WatcherBase):
         else:
             behavior = _.SetSelection
 
-        layers = self.iface.layerTreeView().selectedLayers()
-        
+        config = self.parent.config.getValue()
+        if (Qgis.QGIS_VERSION_INT >= 30400 and config['recursive']):
+            layers = self.iface.layerTreeView().selectedLayersRecursive()
+        else:
+            layers = self.iface.layerTreeView().selectedLayers()
+        root = self.iface.layerTreeCanvasBridge().rootGroup()
+
         for lyr in layers:
             if not isinstance(lyr, QgsVectorLayer):
                 continue
             if lyr is self.iface.activeLayer():
                 continue
+
+            if config['skip_invisible']:
+                node = root.findLayer(lyr)
+                if (not isinstance(node, QgsLayerTreeNode) or
+                        not node.isVisible()):
+                    continue
 
             ids = []
             for f in lyr.getFeatures(request):

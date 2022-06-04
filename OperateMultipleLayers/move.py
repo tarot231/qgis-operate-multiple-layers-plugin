@@ -21,7 +21,8 @@
  ***************************************************************************/
 """
 
-from qgis.core import QgsVectorLayer, QgsProject, QgsCoordinateTransform
+from qgis.core import (QgsVectorLayer, Qgis, QgsLayerTreeNode,
+                       QgsProject, QgsCoordinateTransform)
 from .watcher import WatcherBase
 
 
@@ -34,7 +35,7 @@ class MoveFeatureWatcher(WatcherBase):
 
         self.current_layer.selectionChanged.connect(self.slot_selectionChanged)
         self.slot_selectionChanged(self.current_layer.selectedFeatureIds())
-        self.current_layer.geometryChanged.connect(self.slot_geometryChanged)    
+        self.current_layer.geometryChanged.connect(self.slot_geometryChanged)
         self.stack = self.current_layer.undoStack()
         self.stack.indexChanged.connect(self.slot_indexChanged)
 
@@ -64,7 +65,12 @@ class MoveFeatureWatcher(WatcherBase):
             self.params = None
             return
 
-        layers = self.iface.layerTreeView().selectedLayers()
+        config = self.parent.config.getValue()
+        if (Qgis.QGIS_VERSION_INT >= 30400 and config['recursive']):
+            layers = self.iface.layerTreeView().selectedLayersRecursive()
+        else:
+            layers = self.iface.layerTreeView().selectedLayers()
+        root = self.iface.layerTreeCanvasBridge().rootGroup()
         undo_text = self.stack.undoText()
         flag_ct = False
 
@@ -73,6 +79,12 @@ class MoveFeatureWatcher(WatcherBase):
                 continue
             if lyr is self.iface.activeLayer():
                 continue
+
+            if config['skip_invisible']:
+                node = root.findLayer(lyr)
+                if (not isinstance(node, QgsLayerTreeNode) or
+                        not node.isVisible()):
+                    continue
 
             if lyr.crs() != self.current_layer.crs():
                 flag_ct = True

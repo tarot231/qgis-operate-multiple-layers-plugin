@@ -24,8 +24,8 @@
 from qgis.PyQt.QtCore import QObject, QEvent, Qt, pyqtSignal
 from qgis.PyQt.QtGui import QTransform
 from qgis.PyQt.QtWidgets import QWidget
-from qgis.core import (QgsVectorLayer, QgsProject, 
-                       QgsCoordinateTransform, QgsGeometry)
+from qgis.core import (QgsVectorLayer, Qgis, QgsLayerTreeNode,
+                       QgsProject, QgsCoordinateTransform, QgsGeometry)
 from qgis.gui import QgsMapMouseEvent, QgsDoubleSpinBox
 from .watcher import WatcherBase
 
@@ -123,7 +123,12 @@ class ScaleFeatureWatcher(WatcherBase):
             self.params = None
             return
 
-        layers = self.iface.layerTreeView().selectedLayers()
+        config = self.parent.config.getValue()
+        if (Qgis.QGIS_VERSION_INT >= 30400 and config['recursive']):
+            layers = self.iface.layerTreeView().selectedLayersRecursive()
+        else:
+            layers = self.iface.layerTreeView().selectedLayers()
+        root = self.iface.layerTreeCanvasBridge().rootGroup()
         undo_text = self.stack.undoText()
         flag_ct = False
 
@@ -132,6 +137,12 @@ class ScaleFeatureWatcher(WatcherBase):
                 continue
             if lyr is self.iface.activeLayer():
                 continue
+
+            if config['skip_invisible']:
+                node = root.findLayer(lyr)
+                if (not isinstance(node, QgsLayerTreeNode) or
+                        not node.isVisible()):
+                    continue
 
             if lyr.crs() != self.current_layer.crs():
                 flag_ct = True

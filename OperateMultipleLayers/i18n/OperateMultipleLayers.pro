@@ -5,5 +5,7 @@ SOURCES = ../__init__.py \
           ../move.py \
           ../rotate.py \
           ../scale.py \
-          ../delete.py
+          ../delete.py \
+          ../toggle_edit.py \
+          ../ui.py
 TRANSLATIONS = ja.ts

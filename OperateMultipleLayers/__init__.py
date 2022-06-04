@@ -22,16 +22,18 @@
 """
 
 import os
-from qgis.PyQt.QtCore import QObject, QTranslator, QLocale
-from qgis.PyQt.QtWidgets import qApp
+from qgis.PyQt.QtCore import QObject, QTranslator, QLocale, QSettings
+from qgis.PyQt.QtWidgets import qApp, QDialog, QAction
 from qgis.core import QgsApplication, QgsVectorLayer
 from .toggle_edit import ToggleEditingWatcher
+from .select_all_invert import SelectAllAndInvertWatcher
 from .undo import UndoWatcher
 from .delete import DeleteFeatureWatcher
 from .select import SelectFeaturesWatcher
 from .move import MoveFeatureWatcher
 from .rotate import RotateFeatureWatcher
 from .scale import ScaleFeatureWatcher
+from .ui import ConfigDialog
 
 
 class OperateMultipleLayers(QObject):
@@ -42,21 +44,37 @@ class OperateMultipleLayers(QObject):
         if self.translator.load(QLocale(QgsApplication.locale()),
                 '', '', os.path.join(os.path.dirname(__file__), 'i18n')):
             qApp.installTranslator(self.translator)
-        self.plugin_name = self.tr('Operate Multiple Layers')
 
     def initGui(self):
+        self.plugin_name = self.tr('Operate Multiple Layers')
+        self.config = ConfigDialog(parent=self.iface.mainWindow())
+        self.config.setWindowTitle('%s — %s' % 
+                (self.tr('Configure'), self.plugin_name))
+        self.plugin_act = QAction(
+                self.tr('Configure…'), self.iface.mainWindow())
+        self.plugin_act.triggered.connect(self.run)
+        self.iface.addPluginToMenu(self.plugin_name, self.plugin_act)
+        self.restore_setting()
+
         self.is_undoing = False
         self.canvas = self.iface.mapCanvas()
         self.canvas.currentLayerChanged.connect(self.slot_currentLayerChanged)
         self.canvas.mapToolSet.connect(self.slot_mapToolSet)
         self.slot_currentLayerChanged(self.iface.activeLayer())
+
         self.toggle_edit_watcher = ToggleEditingWatcher(self)
+        self.select_all_invert_watcher = SelectAllAndInvertWatcher(self)
 
     def unload(self):
+        self.select_all_invert_watcher.unload()
+        self.select_all_invert_watcher = None
         self.toggle_edit_watcher = None
         self.undo_watcher = None
         self.delete_watcher = None
         self.tool_watcher = None
+        self.save_setting()
+        self.iface.removePluginMenu(self.plugin_name, self.plugin_act)
+        del self.plugin_act
 
     def slot_currentLayerChanged(self, layer):
         self.current_layer = layer
@@ -82,6 +100,25 @@ class OperateMultipleLayers(QObject):
             self.tool_watcher = RotateFeatureWatcher(self)
         elif name =='mActionScaleFeature':
             self.tool_watcher = ScaleFeatureWatcher(self)
+
+    def run(self):
+        prev = self.config.getValue()
+        if self.config.exec() == QDialog.Rejected:
+            self.config.setValue(prev)
+
+    def restore_setting(self):
+        dict_value = {}
+        keys = ('skip_invisible', 'recursive')
+        for k in keys:
+            v = QSettings().value('/'.join((self.__class__.__name__, k)))
+            dict_value[k] = bool(v == 'true')
+        self.config.setValue(dict_value)
+
+    def save_setting(self):
+        dict_value = self.config.getValue()
+        for k in dict_value.keys():
+            QSettings().setValue('/'.join((self.__class__.__name__, k)),
+                    dict_value[k])
 
 
 def classFactory(iface):

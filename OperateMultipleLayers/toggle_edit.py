@@ -21,27 +21,37 @@
  ***************************************************************************/
 """
 
-from qgis.core import QgsVectorLayer, Qgis
+from qgis.core import QgsVectorLayer, Qgis, QgsLayerTreeNode
 from .watcher import WatcherBase
 
 
 class ToggleEditingWatcher(WatcherBase):
     def __init__(self, parent):
         super().__init__(parent)
-        if Qgis.QGIS_VERSION_INT < 32200:
-            self.iface.actionToggleEditing().toggled.connect(
-                    self.slot_toggled)
+        self.iface.actionToggleEditing().triggered.connect(
+                self.slot_triggered)
 
-    def slot_toggled(self, checked):
+    def slot_triggered(self):
+        checked = self.iface.actionToggleEditing().isChecked()
         tools = self.iface.vectorLayerTools()
+        config = self.parent.config.getValue()
+        if (Qgis.QGIS_VERSION_INT >= 30400 and config['recursive']):
+            layers = self.iface.layerTreeView().selectedLayersRecursive()
+        else:
+            layers = self.iface.layerTreeView().selectedLayers()
+        root = self.iface.layerTreeCanvasBridge().rootGroup()
 
-        layers = self.iface.layerTreeView().selectedLayers()
-        
         for lyr in layers:
             if not isinstance(lyr, QgsVectorLayer):
                 continue
             if lyr is self.iface.activeLayer():
                 continue
+
+            if config['skip_invisible']:
+                node = root.findLayer(lyr)
+                if (not isinstance(node, QgsLayerTreeNode) or
+                        not node.isVisible()):
+                    continue
 
             if checked:
                 if (not lyr.isEditable()

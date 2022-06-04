@@ -24,7 +24,8 @@
 import math
 from qgis.PyQt.QtCore import QObject, QEvent, Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import QWidget
-from qgis.core import QgsVectorLayer, QgsProject, QgsCoordinateTransform
+from qgis.core import (QgsVectorLayer, Qgis, QgsLayerTreeNode,
+                       QgsProject, QgsCoordinateTransform)
 from qgis.gui import QgsMapMouseEvent, QgsDoubleSpinBox
 from .watcher import WatcherBase
 
@@ -108,7 +109,7 @@ class RotateFeatureWatcher(WatcherBase):
         prev_geom.rotate(self.rotation, self.anchor)
         if not geom.equals(prev_geom):
             return
-        
+
         self.params = self.rotation, self.anchor
 
     def slot_indexChanged(self):
@@ -116,7 +117,12 @@ class RotateFeatureWatcher(WatcherBase):
             self.params = None
             return
 
-        layers = self.iface.layerTreeView().selectedLayers()
+        config = self.parent.config.getValue()
+        if (Qgis.QGIS_VERSION_INT >= 30400 and config['recursive']):
+            layers = self.iface.layerTreeView().selectedLayersRecursive()
+        else:
+            layers = self.iface.layerTreeView().selectedLayers()
+        root = self.iface.layerTreeCanvasBridge().rootGroup()
         undo_text = self.stack.undoText()
         flag_ct = False
 
@@ -125,6 +131,12 @@ class RotateFeatureWatcher(WatcherBase):
                 continue
             if lyr is self.iface.activeLayer():
                 continue
+
+            if config['skip_invisible']:
+                node = root.findLayer(lyr)
+                if (not isinstance(node, QgsLayerTreeNode) or
+                        not node.isVisible()):
+                    continue
 
             if lyr.crs() != self.current_layer.crs():
                 flag_ct = True

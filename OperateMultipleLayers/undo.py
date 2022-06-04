@@ -21,7 +21,7 @@
  ***************************************************************************/
 """
 
-from qgis.core import QgsVectorLayer
+from qgis.core import QgsVectorLayer, Qgis, QgsLayerTreeNode
 from .watcher import WatcherBase
 
 
@@ -51,13 +51,24 @@ class UndoWatcher(WatcherBase):
         self.prev_index = index
 
     def undo(self, text, is_redo=False):
-        layers = self.iface.layerTreeView().selectedLayers()
-        
+        config = self.parent.config.getValue()
+        if (Qgis.QGIS_VERSION_INT >= 30400 and config['recursive']):
+            layers = self.iface.layerTreeView().selectedLayersRecursive()
+        else:
+            layers = self.iface.layerTreeView().selectedLayers()
+        root = self.iface.layerTreeCanvasBridge().rootGroup()
+
         for lyr in layers:
             if not (isinstance(lyr, QgsVectorLayer) and lyr.isEditable()):
                 continue
             if lyr is self.iface.activeLayer():
                 continue
+
+            if config['skip_invisible']:
+                node = root.findLayer(lyr)
+                if (not isinstance(node, QgsLayerTreeNode) or
+                        not node.isVisible()):
+                    continue
 
             if is_redo:
                 if lyr.undoStack().redoText() == text:
