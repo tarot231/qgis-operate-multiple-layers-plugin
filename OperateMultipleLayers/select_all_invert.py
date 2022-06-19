@@ -29,7 +29,11 @@ from .watcher import WatcherBase
 class SelectAllAndInvertWatcher(WatcherBase):
     def __init__(self, parent):
         super().__init__(parent)
-        for act in self.iface.editMenu().findChild(QMenu, 'mMenuSelect').actions():
+        if Qgis.QGIS_VERSION_INT >= 31800:
+            menuSelect = self.iface.editMenu().findChild(QMenu, 'mMenuSelect')
+        else:
+            menuSelect = self.iface.editMenu().findChild(QMenu, 'menuSelect')
+        for act in menuSelect.actions():
             name = act.objectName()
             if name == 'mActionSelectAll':
                 self.actionSelectAll = act
