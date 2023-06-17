@@ -5,10 +5,12 @@ description=Watches the operation of some tools and applies them to other select
 description[ja]=いくつかのツールの動作を監視し、他の選択されたレイヤにも適用します
 about=When editing with tools such as move and rotate, make other selected editable layers will operate simultaneously. In order to work, features on the current layer must be targeted. Currently supported tools are "Move Feature", "Rotate Feature", "Scale Feature" and "Delete Selected". "Select Features by Area (rectangular selection only)" and "Undo / Redo" will also supports multiple layers.
 about[ja]=移動や回転などのツールによる編集を行う際、他の選択された編集可能レイヤも同時に操作するようにします。動作させるために、カレントレイヤの地物が対象となっている必要があります。現在対応しているツールは、「地物を移動」、「地物を回転」、「地物をスケーリング」、「選択した地物の削除」です。「地物を選択（矩形選択のみ）」や「元に戻す／やり直す」も複数レイヤ対応になります。
-version=0.3.1
+version=0.3.2
 changelog=
+ 0.3.2
+  - Fixed crash that occurred when the map tool was unselected
  0.3.1
-  - Fixed crash for <3.18
+  - Fixed crash that occurred in QGIS 3.16 or earlier
  0.3
   - Added support for "Select All Features" (Ctrl+A does not work)
   - Added support for "Invert Feature Selection"

@@ -89,9 +89,10 @@ class OperateMultipleLayers(QObject):
 
     def slot_mapToolSet(self):
         self.tool_watcher = None
-        if self.canvas.mapTool() is None:
+        try:
+            name = self.canvas.mapTool().action().objectName()
+        except AttributeError:
             return
-        name = self.canvas.mapTool().action().objectName()
         if name =='mActionSelectFeatures':
             self.tool_watcher = SelectFeaturesWatcher(self)
         elif name =='mActionMoveFeature':
@@ -103,7 +104,7 @@ class OperateMultipleLayers(QObject):
 
     def run(self):
         prev = self.config.getValue()
-        if self.config.exec() == QDialog.Rejected:
+        if self.config.exec() != QDialog.Accepted:
             self.config.setValue(prev)
 
     def restore_setting(self):
